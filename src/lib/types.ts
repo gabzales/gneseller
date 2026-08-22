@@ -50,4 +50,5 @@ export type ResellerUser = {
   balance: number;
   role: "user" | "admin";
   verified: boolean;
+  theme: string;
 };

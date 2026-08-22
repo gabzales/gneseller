@@ -28,7 +28,7 @@ export const getCurrentUser = cache(async (): Promise<ResellerUser | null> => {
 
   const { data } = await supabase
     .from("users")
-    .select("id, full_name, email, avatar_url, balance, role, verified")
+    .select("id, full_name, email, avatar_url, balance, role, verified, theme")
     .eq("id", authUser.id)
     .single();
 
@@ -42,5 +42,6 @@ export const getCurrentUser = cache(async (): Promise<ResellerUser | null> => {
     balance: data.balance,
     role: data.role,
     verified: data.verified,
+    theme: data.theme || "ghost",
   };
 });

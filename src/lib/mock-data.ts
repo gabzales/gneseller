@@ -113,6 +113,7 @@ export const CURRENT_USER: ResellerUser = {
   balance: 725000,
   role: "user",
   verified: true,
+  theme: "ghost",
 };
 
 export const TOPUP_PACKAGES = [

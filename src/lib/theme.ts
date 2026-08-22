@@ -196,7 +196,21 @@ export const THEMES: Theme[] = [
   },
 ];
 
-export const DEFAULT_THEME: ThemeId = "monokrom";
+// FIX: was "monokrom" -- that theme deliberately sets --rose/--teal/
+// --amber to the same near-black value as --primary (see THEMES above),
+// since "Monokrom" is meant to be a genuinely colorless option. But
+// theme choice is stored per-device in localStorage (not per-account),
+// so every NEW reseller on a NEW device silently got Monokrom by
+// default -- their dashboard's 4 service tiles (Generate Keys/History
+// Key/Top Up/History Top Up) all rendered as flat black, none of the
+// purple/red/teal/amber distinction ServiceCard.tsx's own comment
+// describes as the intended reference look. A dev's own browser that
+// had already manually switched to a colorful theme during earlier
+// testing wouldn't show this at all -- hence "kok di gua ada [warna],
+// di reseller nggak". "ghost" is the theme that actually matches the
+// reference design (purple/red/teal/amber), so it's the correct default
+// -- Monokrom is still available in the picker for anyone who wants it.
+export const DEFAULT_THEME: ThemeId = "ghost";
 export const THEME_STORAGE_KEY = "gs-theme";
 
 export function getTheme(id: string | null | undefined): Theme {
