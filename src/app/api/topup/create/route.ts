@@ -8,6 +8,17 @@ import { isSameOriginRequest } from "@/lib/origin-guard";
 import { getGenspayConfig } from "@/lib/provider/genspay";
 import { getTopupPackagesAsAdmin } from "@/lib/data/topup-packages";
 
+// Same class of bug as generate-key/route.ts: this handler calls out to
+// GensPay (fetch to GENSPAY_BASE_URL) and Supabase (create_pending_topup)
+// before returning. On Vercel's default serverless timeout (10s on Hobby),
+// a slow/cold-starting Supabase or a slow GensPay response gets the
+// function killed mid-request -- the client sees a raw 502 HTML page
+// (breaks res.json()), and worse, GensPay's request may have already
+// succeeded server-side with nothing committed on our end to match it
+// against later. Explicit maxDuration keeps the function alive long
+// enough for both calls to actually finish.
+export const maxDuration = 30;
+
 /**
  * Creates a pending QRIS transaction via GensPay and returns the checkout
  * payload (QR string) to the client.

@@ -50,6 +50,16 @@ import { getGenspayConfig } from "@/lib/provider/genspay";
  * The idempotent settle_topup() RPC underneath is untouched by this swap.
  */
 
+// Same class of bug as generate-key/route.ts and topup/create/route.ts:
+// this handler does a signature check, a DB lookup, and settle_topup()
+// before returning 2xx. If Vercel kills it early (default 10s on Hobby)
+// mid-settlement, GensPay sees a connection reset/timeout rather than a
+// clean 2xx/4xx -- it'll retry per its backoff policy, but there's no
+// guarantee those retries land before it gives up, which is a very
+// plausible cause of "customer paid, GensPay confirms SUCCESS on their
+// side, but our balance never credits and webhook_log stays empty".
+export const maxDuration = 30;
+
 async function verifySignature(rawBody: string, signatureHeader: string | null) {
   // Reads from app_settings (admin panel) first, GENSPAY_API_KEY env as
   // fallback -- same source of truth as topup/create/route.ts, via
