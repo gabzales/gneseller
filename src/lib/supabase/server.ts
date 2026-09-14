@@ -2,6 +2,13 @@ import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
 import { SUPABASE_URL, SUPABASE_ANON_KEY, isSupabaseConfigured } from "./config";
 
+// Sama alasannya kayak di admin.ts: cegah fetch() internal supabase-js
+// ke-cache Next.js/Vercel terlepas dari dynamic rendering status halaman
+// yang makai client ini.
+function noStoreFetch(input: RequestInfo | URL, init?: RequestInit) {
+  return fetch(input, { ...init, cache: "no-store" });
+}
+
 /**
  * Server Component / Route Handler client — reads/writes the auth cookie
  * for the current request. Use this (never the service-role client) for
@@ -27,5 +34,6 @@ export async function createServerSupabase() {
         }
       },
     },
+    global: { fetch: noStoreFetch },
   });
 }

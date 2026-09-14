@@ -3,6 +3,16 @@ import { Package, Settings, ArrowRight, KeyRound, Users, Wallet, Megaphone, Hist
 import PageHeader from "@/components/dashboard/PageHeader";
 import { createAdminSupabase } from "@/lib/supabase/admin";
 
+// FIX (Sep 2026, audit menyeluruh): halaman ini baca data yang berubah-ubah
+// (saldo, riwayat, harga tier, dll) lewat Server Component -- tanpa
+// force-dynamic, Next.js App Router (v14) bisa nge-cache hasil fetch di
+// dalamnya dan nyangkut di data BASI selamanya walau database-nya sudah
+// berubah (kejadian nyata: reseller lihat harga lama di /dashboard/generate
+// walau tier-nya sudah naik -- lihat riwayat perbaikan di halaman itu).
+// Diterapkan ke semua halaman dashboard yang baca data live sebagai
+// tindakan pencegahan, bukan cuma yang sudah kebukti kena.
+export const dynamic = 'force-dynamic';
+
 async function getStats() {
   const admin = createAdminSupabase();
   if (!admin) return { products: 0, activeProducts: 0, keysSold: 0, resellers: 0 };
@@ -86,6 +96,19 @@ export default async function AdminOverviewPage() {
           <div className="min-w-0 flex-1">
             <p className="text-[13.5px] font-bold">GensPay</p>
             <p className="text-[11.5px] text-ink-faint">Kredensial payment gateway QRIS + test/debug</p>
+          </div>
+          <ArrowRight size={16} className="text-ink-faint" />
+        </Link>
+        <Link
+          href="/dashboard/admin/settings/partner-api"
+          className="flex items-center gap-3 px-5 py-4 transition-colors hover:bg-surface-2"
+        >
+          <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary-dim text-primary">
+            <KeyRound size={16} />
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="text-[13.5px] font-bold">Partner API</p>
+            <p className="text-[11.5px] text-ink-faint">API Key buat toko client (mis. RYAN NEW ERA) auto-restock</p>
           </div>
           <ArrowRight size={16} className="text-ink-faint" />
         </Link>

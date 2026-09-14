@@ -20,38 +20,35 @@ import { createAdminSupabase } from "@/lib/supabase/admin";
 // memotong balance akun ini, sama seperti reseller biasa. Ini supaya
 // pemakaian tetap tercatat & dibatasi saldo, bukan generate gratis
 // tanpa batas.
+//
+// CATATAN: sengaja TIDAK di-cache di module-level (beda dari pola TTL
+// 30 detik di genspay.ts). getPartnerApiConfig() dipanggil dari 3 route
+// API berbeda (/admin/settings/partner-api, /api/v1/partner/products,
+// /api/v1/partner/generate-key) yang di Vercel jadi serverless function
+// TERPISAH dengan module scope masing-masing -- cache di satu function
+// tidak pernah bisa di-invalidate dari function lain, jadi query fresh
+// tiap kali di sini lebih aman daripada beresiko baca config basi.
+// Endpoint ini dipanggil jarang (setup + tiap ada order auto-restock,
+// bukan tiap page-load pengunjung), jadi ongkos query tambahan murah.
 // ══════════════════════════════════════════════════════════════════
 
 export type PartnerApiConfig = { apiKey: string; resellerId: string };
 
-const CONFIG_CACHE_TTL_MS = 30_000; // lihat alasan TTL di genspay.ts (multi-instance Vercel)
-let cachedConfig: PartnerApiConfig | null = null;
-let cachedAt = 0;
-
 export async function getPartnerApiConfig(): Promise<PartnerApiConfig> {
-  if (cachedConfig && Date.now() - cachedAt < CONFIG_CACHE_TTL_MS) {
-    return cachedConfig;
-  }
-
-  let stored: Partial<PartnerApiConfig> = {};
   const admin = createAdminSupabase();
-  if (admin) {
-    const { data } = await admin.from("app_settings").select("value").eq("key", "partner_api").maybeSingle();
-    if (data?.value) stored = data.value as Partial<PartnerApiConfig>;
+  if (!admin) {
+    return {
+      apiKey: (process.env.PARTNER_API_KEY || "").trim(),
+      resellerId: (process.env.PARTNER_API_RESELLER_ID || "").trim(),
+    };
   }
 
-  const config: PartnerApiConfig = {
+  const { data } = await admin.from("app_settings").select("value").eq("key", "partner_api").maybeSingle();
+  const stored = (data?.value || {}) as Partial<PartnerApiConfig>;
+  return {
     apiKey: (stored.apiKey || process.env.PARTNER_API_KEY || "").trim(),
     resellerId: (stored.resellerId || process.env.PARTNER_API_RESELLER_ID || "").trim(),
   };
-  cachedConfig = config;
-  cachedAt = Date.now();
-  return config;
-}
-
-export function invalidatePartnerApiConfigCache() {
-  cachedConfig = null;
-  cachedAt = 0;
 }
 
 /**

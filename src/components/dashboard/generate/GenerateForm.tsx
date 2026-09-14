@@ -58,9 +58,28 @@ export default function GenerateForm({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ productId: product.id, durationId: duration.id }),
       });
-      const data = await res.json();
+      let data: { message?: string; key?: { key_string: string } };
+      try {
+        data = await res.json();
+      } catch {
+        // FIX (Sep 2026): res.json() gagal parse (body kosong/putus di
+        // tengah jalan -- biasanya koneksi HP ke server kepotong, bukan
+        // berarti request-nya gagal di server) sebelumnya nyampe ke user
+        // sebagai pesan mentah "Unexpected end of JSON input" yang bikin
+        // panik & gak jelas harus ngapain. Yang bikin ini beresiko: kalau
+        // requestnya SEBENARNYA sudah sukses di server (key sudah dibuat,
+        // saldo sudah kepotong) tapi respons-nya yang putus di jalan,
+        // asal klik Generate lagi bisa bikin key & potongan saldo DOBEL.
+        // Makanya pesannya eksplisit nyuruh cek Riwayat dulu, bukan cuma
+        // "coba lagi".
+        throw new Error(
+          "Koneksi terputus saat menunggu respons server. JANGAN langsung klik Generate lagi -- " +
+          "cek dulu di Riwayat Key & saldo kamu, kalau key/potongan sudah muncul di sana berarti " +
+          "sebenarnya sudah berhasil. Kalau belum ada, baru aman dicoba ulang."
+        );
+      }
       if (!res.ok) throw new Error(data.message || "Gagal membuat key.");
-      setResultKey(data.key.key_string);
+      setResultKey(data.key!.key_string);
       setStatus("done");
       router.refresh(); // re-fetch balance in the layout/sidebar
     } catch (err) {

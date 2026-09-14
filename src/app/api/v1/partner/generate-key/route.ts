@@ -5,6 +5,11 @@ import { checkRateLimit } from "@/lib/rate-limit";
 import { getPartnerApiConfig, isValidPartnerApiKey } from "@/lib/provider/partner-auth";
 import { orderProviderKey } from "@/lib/provider/vipibmstore";
 
+// FIX (Sep 2026): sama alasannya kayak di products/route.ts -- paksa
+// dynamic biar getPartnerApiConfig() (dan semua query lain di bawah)
+// gak pernah kena static/data cache Next.js.
+export const dynamic = 'force-dynamic';
+
 // POST /api/v1/partner/generate-key
 // Header wajib : X-API-Key
 // Body         : { productId, durationId, idempotencyKey? }
@@ -34,7 +39,7 @@ export async function POST(request: Request) {
   }
 
   const { apiKey, resellerId } = await getPartnerApiConfig();
-  const headerKey = request.headers.get("x-api-key");
+  const headerKey = request.headers.get("x-api-key")?.trim() || null;
   if (!apiKey || !isValidPartnerApiKey(headerKey, apiKey)) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
