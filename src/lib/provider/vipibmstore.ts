@@ -210,7 +210,26 @@ export async function orderProviderKey({
   if (!productItemId) {
     return { success: false, code: "MISSING_ITEM_ID", message: "product_item_id belum di-mapping untuk produk ini." };
   }
-  const body: Record<string, unknown> = { product_item_id: productItemId, quantity: 1 };
+  // FIX (Sep 2026): "Invalid request" gagal terus-terusan di semua produk
+  // stock_mode=auto (PATO BLUE dkk) -- root cause: kolom provider_item_id
+  // kita itu text ("5"), dan dikirim apa adanya ke vipibmstore.com. Tapi
+  // katalog mereka sendiri (GET /v2/products) balikin id sebagai JSON
+  // NUMBER (5), dan API mereka validasi tipe secara strict -- product_item_id
+  // string ditolak sebagai "Invalid request" walau nilainya "sama" secara
+  // visual. Dikonfirmasi lewat /api/debug/provider-mapping (rawCatalogIdSample
+  // idType: "number"). Kalau provider_item_id kita ternyata bukan angka murni
+  // (harusnya gak terjadi kalau mapping-nya benar), Number() bakal balikin
+  // NaN -- di-guard di bawah biar gagal jelas ("Mapping ID bukan angka")
+  // daripada diam-diam kekirim NaN ke provider.
+  const numericItemId = Number(productItemId);
+  if (!Number.isFinite(numericItemId)) {
+    return {
+      success: false,
+      code: "INVALID_ITEM_ID_FORMAT",
+      message: `product_item_id "${productItemId}" bukan angka valid -- cek ulang mapping produk ini.`,
+    };
+  }
+  const body: Record<string, unknown> = { product_item_id: numericItemId, quantity: 1 };
   if (customerReference) body.customer_reference = customerReference.slice(0, 191);
   return doRequest({ method: "POST", relativePath: "/v2/orders", body, idempotencyKey });
 }
