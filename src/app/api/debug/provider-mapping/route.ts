@@ -73,11 +73,16 @@ export async function GET(request: Request) {
     });
   }
 
-  const catalogIds = new Set(catalog.data.map((p) => p.id));
+  // FIX: bandingin sebagai string, dua-duanya. Kalau API vipibmstore
+  // balikin id sebagai JSON number (55, bukan "55") sementara kolom kita
+  // provider_item_id itu text ("55"), Set.has() versi lama di sini akan
+  // SELALU false walau nilainya sama -- itu yang bikin hasil awal nunjukin
+  // 100% "MAPPING RUSAK" utk 117/117 item sekaligus, jelas bukan realita.
+  const catalogIds = new Set(catalog.data.map((p) => String(p.id)));
 
   const results = durations.map((d) => {
     const mappedId = d.provider_item_id || "";
-    const foundInCatalog = mappedId ? catalogIds.has(mappedId) : false;
+    const foundInCatalog = mappedId ? catalogIds.has(String(mappedId)) : false;
     return {
       product: (d.products as unknown as { name?: string } | null)?.name ?? d.product_id,
       duration: d.label,
@@ -92,9 +97,20 @@ export async function GET(request: Request) {
     };
   });
 
+  // Sample mentah 3 item pertama dari katalog vipibmstore.com apa adanya
+  // (termasuk typeof id-nya) -- biar keliatan jelas ini number atau
+  // string di sisi MEREKA, gak perlu nebak lagi. Kalau typeof "number",
+  // ada kemungkinan orderProviderKey() (yang beneran dipanggil pas
+  // Generate Key, bukan cuma debug ini) juga kena masalah sama: dia
+  // kirim product_item_id apa adanya dari kolom text kita (jadi string)
+  // ke body JSON, dan kalau vipibmstore.com validasi strict tipe data,
+  // itu bisa jadi penyebab ASLI "Invalid request" di produksi.
+  const rawSample = catalog.data.slice(0, 3).map((p) => ({ id: p.id, idType: typeof p.id }));
+
   return NextResponse.json({
     checkedAt: new Date().toISOString(),
     providerCatalogSize: catalog.data.length,
+    rawCatalogIdSample: rawSample,
     results,
   });
 }
