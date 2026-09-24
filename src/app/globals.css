@@ -1,0 +1,101 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+  Design tokens for GhostSeller.
+  These are exposed as CSS variables (not hard-coded Tailwind colors) on
+  purpose: PRD 2.0 section 2 calls for admin-driven dynamic theming.
+  When that admin panel exists, override these variables at runtime
+  (e.g. by writing to document.documentElement.style) instead of editing
+  this file. See src/lib/theme.ts for the single source of truth + the
+  hook that will read a saved palette from Supabase.
+
+  Black & white theme: clean, minimal, no multi-color accents. Every
+  semantic color slot (primary/rose/teal/amber) intentionally maps to the
+  same near-black so existing component code (built around 4 named
+  accent colors) doesn't need touching -- status/emphasis differences now
+  come from weight and border, not hue. The one deliberate exception is
+  --danger, kept as a genuinely different (desaturated) red so
+  destructive actions still read as distinct at a glance -- pure
+  grayscale made "delete this" and "this succeeded" visually identical,
+  which is a usability regression, not minimalism.
+*/
+:root {
+  --bg: #ffffff;
+  --surface: #ffffff;
+  --surface-2: #f5f5f5;
+  --border: #e5e5e5;
+  --border-strong: #d4d4d4;
+
+  --ink: #0a0a0a;
+  --ink-dim: #525252;
+  --ink-faint: #a3a3a3;
+
+  /* Generate Keys -- primary action color, kept as near-black (not a hue) */
+  --primary: #0a0a0a;
+  --primary-dim: #f0f0f0;
+  /* History Key -- same near-black family, differentiated by context/weight, not color */
+  --rose: #171717;
+  --rose-dim: #f0f0f0;
+  /* Top Up */
+  --teal: #171717;
+  --teal-dim: #f0f0f0;
+  /* Top-up History */
+  --amber: #171717;
+  --amber-dim: #f0f0f0;
+
+  /* Genuinely-colored exception: destructive/error state only. */
+  --danger: #b91c1c;
+  --danger-dim: #fef2f2;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  background: var(--bg);
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  color: var(--ink);
+  background: var(--bg);
+  min-height: 100dvh;
+}
+
+::selection {
+  background: var(--primary);
+  color: #fff;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 8px;
+  border: 2px solid var(--bg);
+}
+
+:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
