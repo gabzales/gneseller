@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createAdminSupabase } from "@/lib/supabase/admin";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
-import { getPartnerApiConfig, isValidPartnerApiKey } from "@/lib/provider/partner-auth";
+import { authenticatePartnerRequest } from "@/lib/provider/partner-auth";
 
 // FIX (Sep 2026): route GET ini gampang kena "static caching" default
 // Next.js App Router -- kalau itu kejadian, hasil query app_settings di
@@ -37,11 +37,13 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "supabase_not_configured" }, { status: 503 });
   }
 
-  const { apiKey, resellerId } = await getPartnerApiConfig();
-  const headerKey = request.headers.get("x-api-key")?.trim() || null;
-  if (!apiKey || !isValidPartnerApiKey(headerKey, apiKey)) {
+  // MULTI-KEY: cocokkan ke semua key aktif; resellerId yang dipakai buat
+  // hitung harga tier/custom adalah milik key yang cocok itu.
+  const partnerKey = await authenticatePartnerRequest(request.headers.get("x-api-key")?.trim() || null);
+  if (!partnerKey) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
+  const resellerId = partnerKey.resellerId;
 
   const admin = createAdminSupabase();
   if (!admin) {

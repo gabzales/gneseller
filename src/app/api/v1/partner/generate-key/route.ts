@@ -2,8 +2,8 @@ import { NextResponse } from "next/server";
 import { createAdminSupabase } from "@/lib/supabase/admin";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { checkRateLimit } from "@/lib/rate-limit";
-import { getPartnerApiConfig, isValidPartnerApiKey } from "@/lib/provider/partner-auth";
-import { orderProviderKey } from "@/lib/provider/vipibmstore";
+import { authenticatePartnerRequest } from "@/lib/provider/partner-auth";
+import { orderProviderKey, providerErrorToCustomerMessage } from "@/lib/provider/vipibmstore";
 
 // FIX (Sep 2026): sama alasannya kayak di products/route.ts -- paksa
 // dynamic biar getPartnerApiConfig() (dan semua query lain di bawah)
@@ -38,11 +38,13 @@ export async function POST(request: Request) {
     );
   }
 
-  const { apiKey, resellerId } = await getPartnerApiConfig();
-  const headerKey = request.headers.get("x-api-key")?.trim() || null;
-  if (!apiKey || !isValidPartnerApiKey(headerKey, apiKey)) {
+  // MULTI-KEY: tiap toko client punya key sendiri, terikat ke akun
+  // reseller-nya sendiri (saldo & tier terpisah).
+  const partnerKey = await authenticatePartnerRequest(request.headers.get("x-api-key")?.trim() || null);
+  if (!partnerKey) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
+  const resellerId = partnerKey.resellerId;
   if (!resellerId) {
     return NextResponse.json(
       { error: "partner_reseller_not_configured", message: "Akun reseller partner belum di-set di app_settings('partner_api')." },
@@ -64,7 +66,7 @@ export async function POST(request: Request) {
   // (server RyanNewEra), bukan banyak browser reseller. Angka lebih
   // longgar dari /api/generate-key karena satu toko client bisa restock
   // beberapa varian sekaligus saat trafik lagi ramai.
-  const allowed = await checkRateLimit(admin, `partner-generate-key:${apiKey.slice(0, 12)}`, {
+  const allowed = await checkRateLimit(admin, `partner-generate-key:${partnerKey.id}`, {
     maxHits: 60,
     windowSeconds: 60,
   });
@@ -119,10 +121,24 @@ export async function POST(request: Request) {
     });
 
     if (!providerResult.success) {
-      return NextResponse.json(
-        { error: "provider_error", message: providerResult.message || "Gagal generate key dari provider." },
-        { status: 502 }
-      );
+      // Catat pesan MENTAH buat owner (halaman Debug Provider), tapi ke
+      // klien cuma pesan yang sudah dipetakan -- sebelumnya pesan mentah
+      // provider (mis. "Insufficient balance" milik akun GhostSeller di
+      // supplier) ikut terkirim ke toko client.
+      admin
+        .from("provider_error_log")
+        .insert({
+          user_id: resellerId,
+          product_id: productId,
+          duration_id: durationId,
+          provider_item_id: duration.provider_item_id || null,
+          error_message: `[${providerResult.code}] ${providerResult.message || "(tanpa pesan)"} (partner key: ${partnerKey.label})`,
+        })
+        .then(({ error: logError }) => {
+          if (logError) console.error("gagal simpan provider_error_log:", logError.message);
+        });
+      const customerFacing = providerErrorToCustomerMessage(providerResult.code, providerResult.message || "");
+      return NextResponse.json({ error: "provider_error", message: customerFacing.message }, { status: 502 });
     }
     const providerKey = providerResult.data?.codes?.[0];
     if (!providerKey) {
