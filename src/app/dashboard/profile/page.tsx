@@ -4,6 +4,7 @@ import PageHeader from "@/components/dashboard/PageHeader";
 import Avatar from "@/components/Avatar";
 import LogoutButton from "@/components/LogoutButton";
 import ThemeSwitcher from "@/components/ThemeSwitcher";
+import ChangePasswordForm from "@/components/dashboard/ChangePasswordForm";
 import { getCurrentUser } from "@/lib/data/user";
 
 // FIX (Sep 2026, audit menyeluruh): halaman ini baca data yang berubah-ubah
@@ -58,6 +59,8 @@ export default async function ProfilePage() {
           </div>
         </div>
       </div>
+
+      <ChangePasswordForm />
 
       <ThemeSwitcher />
 

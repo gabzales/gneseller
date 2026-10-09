@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Minus, Trash2, Tag, Ban, ShieldCheck } from "lucide-react";
+import { Plus, Minus, Trash2, Tag, Ban, ShieldCheck, KeyRound } from "lucide-react";
 import type { AdminResellerRow } from "@/lib/data/admin-resellers";
 
 type CatalogDuration = { id: string; label: string; price: number };
@@ -28,6 +28,32 @@ export default function ResellerRow({ reseller }: { reseller: AdminResellerRow }
   const [deleteBusy, setDeleteBusy] = useState(false);
   const [totalTopupInput, setTotalTopupInput] = useState("");
   const [totalTopupBusy, setTotalTopupBusy] = useState(false);
+  const [pwOpen, setPwOpen] = useState(false);
+  const [pwValue, setPwValue] = useState("");
+  const [pwBusy, setPwBusy] = useState(false);
+
+  async function resetPassword() {
+    if (pwValue.length < 8) {
+      setMessage("Password baru minimal 8 karakter.");
+      return;
+    }
+    setPwBusy(true);
+    setMessage(null);
+    const res = await fetch(`/api/admin/resellers/${reseller.id}/reset-password`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ newPassword: pwValue }),
+    });
+    const data = await res.json().catch(() => ({}));
+    setPwBusy(false);
+    if (res.ok) {
+      setPwValue("");
+      setPwOpen(false);
+      setMessage("Password reseller sudah diganti. Kabari reseller lewat WA.");
+    } else {
+      setMessage(data.message || "Gagal mengganti password.");
+    }
+  }
 
   async function toggleBan() {
     setBanBusy(true);
@@ -199,6 +225,40 @@ export default function ResellerRow({ reseller }: { reseller: AdminResellerRow }
           </div>
 
           <CustomPriceManager userId={reseller.id} />
+
+          <div className="mt-3 border-t border-border pt-3">
+            {!pwOpen ? (
+              <button
+                type="button"
+                onClick={() => setPwOpen(true)}
+                className="flex items-center gap-1 rounded-lg bg-primary px-3 py-1.5 text-[12px] font-bold text-white"
+              >
+                <KeyRound size={13} /> Reset Password
+              </button>
+            ) : (
+              <div className="flex flex-wrap items-center gap-2">
+                <input
+                  type="text"
+                  value={pwValue}
+                  onChange={(e) => setPwValue(e.target.value)}
+                  placeholder="Password baru (min. 8 karakter)"
+                  autoComplete="off"
+                  className="min-w-[200px] flex-1 rounded-lg border border-border bg-surface px-3 py-2 text-[13px] outline-none focus:border-primary"
+                />
+                <button
+                  type="button"
+                  onClick={resetPassword}
+                  disabled={pwBusy}
+                  className="rounded-lg bg-primary px-3 py-2 text-[12px] font-bold text-white disabled:opacity-60"
+                >
+                  {pwBusy ? "Menyimpan..." : "Simpan"}
+                </button>
+                <button type="button" onClick={() => { setPwOpen(false); setPwValue(""); }} className="text-[11.5px] font-semibold text-ink-faint">
+                  Batal
+                </button>
+              </div>
+            )}
+          </div>
 
           <div className="mt-3 flex items-center gap-2 border-t border-border pt-3">
             <button
